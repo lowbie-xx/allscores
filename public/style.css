@@ -105,11 +105,10 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--modal-bg);
   backdrop-filter: blur(8px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal.hidden {
@@ -118,7 +117,9 @@ html, body {
 
 .modal-content {
   max-width: 480px;
-  padding: 40px;
+  width: 100%;
+  margin: auto;
+  padding: 40px 40px 60px;
   position: relative;
 }
 
@@ -163,6 +164,16 @@ html, body {
 #info-stats span {
   color: var(--fg);
   font-weight: bold;
+}
+
+#info-sports,
+#info-leagues {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 #info-close {
@@ -387,6 +398,29 @@ main {
   line-height: 1;
 }
 
+/* ── Next Game Countdown ────────────────────────── */
+#next-game {
+  position: fixed;
+  bottom: 56px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  padding: 8px 0;
+}
+
+#next-game-label {
+  margin-right: 8px;
+}
+
+#next-game-countdown {
+  color: var(--fg);
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Feed ────────────────────────────────────────── */
 #feed {
   position: fixed;
@@ -413,11 +447,6 @@ main {
   animation: none;
   justify-content: center;
   width: 100%;
-}
-
-#feed-inner:empty::after {
-  content: 'Waiting for scores...';
-  color: var(--gray-dim);
 }
 
 .feed-set {
@@ -565,6 +594,55 @@ main {
   }
 
   .modal-content {
-    padding: 24px;
+    padding: 24px 20px;
+    max-height: 85vh;
+    max-height: 85dvh;
+  }
+
+  .modal-content h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .modal-content p {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  #info-stats {
+    padding: 12px 0;
+    margin: 14px 0;
+  }
+
+  #info-stats p {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  #modal-tabs {
+    margin-bottom: 16px;
+  }
+
+  .tab {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+
+  #info-controls {
+    margin: 14px 0 0;
+  }
+
+  #theme-toggle {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  #stats-history {
+    max-height: 200px;
+  }
+
+  .history-row {
+    font-size: 11px;
+    padding: 6px 0;
   }
 }

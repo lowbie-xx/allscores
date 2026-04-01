@@ -23,6 +23,9 @@ const $infoLeagues = document.getElementById('info-leagues');
 const $infoResumeRow = document.getElementById('info-resume-row');
 const $infoResume = document.getElementById('info-resume');
 const $themeToggle = document.getElementById('theme-toggle');
+const $nextGame = document.getElementById('next-game');
+const $nextGameCountdown = document.getElementById('next-game-countdown');
+const $nextGameLabel = document.getElementById('next-game-label');
 const $winnerOverlay = document.getElementById('winner-overlay');
 const $winnerSide = document.getElementById('winner-side');
 const $winnerFinalScore = document.getElementById('winner-final-score');
@@ -71,6 +74,8 @@ function timeAgo(timestamp) {
 }
 
 // ── Next Game Countdown ─────────────────────────────
+let nextGameTime = null;
+
 function updateResumeCountdown() {
   const upcoming = games
     .filter(g => !g.isLive && g.startTime)
@@ -80,6 +85,22 @@ function updateResumeCountdown() {
 
   const liveCount = games.filter(g => g.isLive).length;
 
+  // Main page countdown
+  if (liveCount > 0) {
+    $nextGame.classList.add('hidden');
+    nextGameTime = null;
+  } else if (upcoming.length > 0) {
+    nextGameTime = upcoming[0].start;
+    $nextGame.classList.remove('hidden');
+    tickNextGameCountdown();
+  } else {
+    nextGameTime = null;
+    $nextGameLabel.textContent = 'No upcoming games';
+    $nextGameCountdown.textContent = '';
+    $nextGame.classList.remove('hidden');
+  }
+
+  // Modal row
   if (liveCount > 0) {
     $infoResumeRow.classList.add('hidden');
     return;
@@ -97,6 +118,21 @@ function updateResumeCountdown() {
   }
 }
 
+function tickNextGameCountdown() {
+  if (!nextGameTime) return;
+  const diff = nextGameTime - new Date();
+  if (diff <= 0) {
+    $nextGameLabel.textContent = 'Game starting';
+    $nextGameCountdown.textContent = 'now';
+    return;
+  }
+  const hrs = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  $nextGameLabel.textContent = 'Next game in';
+  $nextGameCountdown.textContent = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
 // ── Day Countdown ───────────────────────────────────
 const $infoCountdown = document.getElementById('info-countdown');
 
@@ -111,7 +147,10 @@ function updateDayCountdown() {
 }
 
 updateDayCountdown();
-setInterval(updateDayCountdown, 1000);
+setInterval(() => {
+  updateDayCountdown();
+  tickNextGameCountdown();
+}, 1000);
 
 // ── Stats ───────────────────────────────────────────
 async function loadStats() {
@@ -151,11 +190,12 @@ async function loadStats() {
   }
 }
 
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+  return `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
 }
 
 // ── WebSocket ───────────────────────────────────────
@@ -175,12 +215,12 @@ function connect() {
 
     if (data.type === 'init' || data.type === 'games') {
       games = data.games || [];
-      const liveCount = games.filter(g => g.isLive).length;
-      $infoLiveCount.textContent = liveCount;
-      $infoTotalCount.textContent = games.length;
-      $infoSports.textContent = [...new Set(games.map(g => g.sport))].join(', ') || '—';
-      $infoLeagues.textContent = [...new Set(games.map(g => g.league))].join(', ') || '—';
       updateResumeCountdown();
+
+      // Only update modal stats DOM when modal is visible
+      if (!$infoModal.classList.contains('hidden')) {
+        updateModalStats();
+      }
 
       // Update daily scores from server
       if (data.dailyHome !== undefined) {
@@ -189,6 +229,14 @@ function connect() {
         currentDay = data.day;
         $homeScore.textContent = dailyHome;
         $awayScore.textContent = dailyAway;
+      }
+
+      // Populate feed with recent events on first connect
+      if (data.type === 'init' && data.recentEvents && data.recentEvents.length > 0 && feedItems.length === 0) {
+        for (const event of data.recentEvents) {
+          feedItems.push({ ...event, receivedAt: event.time || Date.now() });
+        }
+        renderFeed();
       }
     }
 
@@ -237,7 +285,7 @@ function addScoreEvent(event) {
   animateScore($awayScore, dailyAway);
 
   feedItems.push({ ...event, receivedAt: Date.now() });
-  if (feedItems.length > 200) feedItems = feedItems.slice(-200);
+  if (feedItems.length > 50) feedItems.splice(0, feedItems.length - 50);
   renderFeed();
 }
 
@@ -249,12 +297,18 @@ function triggerFlash(side) {
 }
 
 // ── Animate Score ───────────────────────────────────
+const scoreAnimations = new Map();
+
 function animateScore($el, target) {
   const current = parseInt($el.textContent, 10) || 0;
   if (current === target) {
     $el.textContent = target;
     return;
   }
+
+  // Cancel any in-flight animation for this element
+  const prev = scoreAnimations.get($el);
+  if (prev) cancelAnimationFrame(prev);
 
   const diff = target - current;
   const steps = Math.min(Math.abs(diff), 20);
@@ -265,12 +319,13 @@ function animateScore($el, target) {
     step++;
     if (step >= steps) {
       $el.textContent = target;
+      scoreAnimations.delete($el);
       return;
     }
     $el.textContent = Math.round(current + stepSize * step);
-    requestAnimationFrame(tick);
+    scoreAnimations.set($el, requestAnimationFrame(tick));
   }
-  requestAnimationFrame(tick);
+  scoreAnimations.set($el, requestAnimationFrame(tick));
 }
 
 // ── Render Feed ─────────────────────────────────────
@@ -320,15 +375,16 @@ setInterval(() => {
 }, 10000);
 
 // ── Winner Animation ────────────────────────────────
+let winnerTimer = null;
+
 function showWinnerAnimation(winner, finalHome, finalAway, onComplete) {
+  if (winnerTimer) clearInterval(winnerTimer);
+
   $winnerOverlay.className = winner || 'draw';
 
-  if (winner === 'home') {
+  if (winner === 'home' || winner === 'away') {
     $winnerLabel.textContent = 'WINNER';
-    $winnerSide.textContent = 'HOME';
-  } else if (winner === 'away') {
-    $winnerLabel.textContent = 'WINNER';
-    $winnerSide.textContent = 'AWAY';
+    $winnerSide.textContent = winner.toUpperCase();
   } else {
     $winnerLabel.textContent = 'DRAW';
     $winnerSide.textContent = '';
@@ -339,23 +395,29 @@ function showWinnerAnimation(winner, finalHome, finalAway, onComplete) {
   let countdown = 5;
   $winnerCountdown.textContent = countdown;
 
-  const tick = setInterval(() => {
+  winnerTimer = setInterval(() => {
     countdown--;
     $winnerCountdown.textContent = countdown;
     if (countdown <= 0) {
-      clearInterval(tick);
-      $winnerOverlay.classList.add('hidden');
+      clearInterval(winnerTimer);
+      winnerTimer = null;
       $winnerOverlay.className = 'hidden';
       onComplete();
     }
   }, 1000);
 }
 
-// Update resume countdown every 60s
-setInterval(updateResumeCountdown, 60000);
-
 // ── Info Modal ──────────────────────────────────────
+function updateModalStats() {
+  const liveCount = games.filter(g => g.isLive).length;
+  $infoLiveCount.textContent = liveCount;
+  $infoTotalCount.textContent = games.filter(g => g.isLive || g.status === 'FT').length;
+  $infoSports.textContent = [...new Set(games.map(g => g.sport))].join(', ') || '—';
+  $infoLeagues.textContent = [...new Set(games.map(g => g.league))].join(', ') || '—';
+}
+
 $infoBtn.addEventListener('click', () => {
+  updateModalStats();
   $infoModal.classList.remove('hidden');
 });
 

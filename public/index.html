@@ -36,7 +36,7 @@
         <p class="accent-text">What team are you on?</p>
         <div id="info-stats">
           <p>Games live: <span id="info-live-count">0</span></p>
-          <p>Games today: <span id="info-total-count">0</span></p>
+          <p>Games tracked: <span id="info-total-count">0</span></p>
           <p>Sports: <span id="info-sports">—</span></p>
           <p>Leagues: <span id="info-leagues">—</span></p>
           <p id="info-resume-row" class="hidden">Next game in: <span id="info-resume">—</span></p>
@@ -87,6 +87,12 @@
       <div id="winner-final-score"></div>
       <div id="winner-next">Next game starting in <span id="winner-countdown">5</span></div>
     </div>
+  </div>
+
+  <!-- Next game countdown (shown when 0 games live) -->
+  <div id="next-game" class="hidden">
+    <span id="next-game-label">Next game in</span>
+    <span id="next-game-countdown">--:--:--</span>
   </div>
 
   <!-- Score feed -->
