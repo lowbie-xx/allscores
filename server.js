@@ -99,7 +99,8 @@ let activeGameCount = 0;
 let cachedClientGames = null;
 let lastGamesHash = '';
 
-const POLL_LIVE = 15_000;
+const POLL_LIVE_MIN = 10_000;
+const POLL_LIVE_MAX = 15_000;
 const POLL_IDLE = 60_000;
 
 // ── ESPN Endpoints ─────────────────────────────────────
@@ -470,7 +471,9 @@ setInterval(() => {
 let pollTimer = null;
 
 function schedulePoll() {
-  const interval = activeGameCount > 0 ? POLL_LIVE : POLL_IDLE;
+  const interval = activeGameCount > 0
+    ? POLL_LIVE_MIN + Math.random() * (POLL_LIVE_MAX - POLL_LIVE_MIN)
+    : POLL_IDLE;
   pollTimer = setTimeout(async () => {
     await pollAllSources();
     schedulePoll();
@@ -481,7 +484,7 @@ function schedulePoll() {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`ALLSCORES running on port ${PORT}`);
-  console.log(`Polling ${ESPN_SOURCES.length} ESPN endpoints (${POLL_LIVE / 1000}s live / ${POLL_IDLE / 1000}s idle)`);
+  console.log(`Polling ${ESPN_SOURCES.length} ESPN endpoints (${POLL_LIVE_MIN / 1000}-${POLL_LIVE_MAX / 1000}s live / ${POLL_IDLE / 1000}s idle)`);
   console.log(`Today: ${currentDay}, daily: H${dailyHome}-A${dailyAway}`);
   pollAllSources().then(schedulePoll);
 });
