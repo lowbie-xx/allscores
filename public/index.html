@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALLSCORES</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Flash overlays -->
+  <div id="flash-home" class="flash flash-home"></div>
+  <div id="flash-away" class="flash flash-away"></div>
+
+  <!-- Info button -->
+  <button id="info-btn" aria-label="Info">?</button>
+
+  <!-- Info modal -->
+  <div id="info-modal" class="modal hidden">
+    <div class="modal-content">
+      <button id="info-close" aria-label="Close">&times;</button>
+
+      <!-- Tab navigation -->
+      <div id="modal-tabs">
+        <button class="tab active" data-tab="about">About</button>
+        <button class="tab" data-tab="stats">Stats</button>
+      </div>
+
+      <!-- About tab -->
+      <div id="tab-about" class="tab-content active">
+        <h2>ALLSCORES</h2>
+        <p>AllScores tracks sports games live, every day, counting each point as if all the teams are a collective: Home VS Away.</p>
+        <p>The only goal: for the home team to beat the away team, and the away team to beat the home team.</p>
+        <p class="accent-text">What team are you on?</p>
+        <div id="info-stats">
+          <p>Games live: <span id="info-live-count">0</span></p>
+          <p>Games today: <span id="info-total-count">0</span></p>
+          <p>Sports: <span id="info-sports">—</span></p>
+          <p>Leagues: <span id="info-leagues">—</span></p>
+          <p id="info-resume-row" class="hidden">Next game in: <span id="info-resume">—</span></p>
+          <p>Day ends in: <span id="info-countdown">—</span></p>
+        </div>
+        <div id="info-controls">
+          <button id="theme-toggle">Switch to light mode</button>
+        </div>
+        <p class="info-small">Data from ESPN. Scores reset at midnight UTC each day.</p>
+      </div>
+
+      <!-- Stats tab -->
+      <div id="tab-stats" class="tab-content">
+        <h2>DAILY RESULTS</h2>
+        <div id="stats-summary">
+          <p>Home wins: <span id="stats-home-wins">0</span></p>
+          <p>Away wins: <span id="stats-away-wins">0</span></p>
+          <p>Draws: <span id="stats-draws">0</span></p>
+        </div>
+        <div id="stats-history"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main scoreboard -->
+  <main>
+    <div id="scoreboard">
+      <div id="home-side" class="side">
+        <div class="side-label">HOME</div>
+        <div id="home-score" class="score">0</div>
+      </div>
+      <div id="divider">
+        <span id="separator">:</span>
+      </div>
+      <div id="away-side" class="side">
+        <div class="side-label">AWAY</div>
+        <div id="away-score" class="score">0</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Winner overlay -->
+  <div id="winner-overlay" class="hidden">
+    <div id="winner-flash"></div>
+    <div id="winner-content">
+      <div id="winner-label">WINNER</div>
+      <div id="winner-side"></div>
+      <div id="winner-final-score"></div>
+      <div id="winner-next">Next game starting in <span id="winner-countdown">5</span></div>
+    </div>
+  </div>
+
+  <!-- Score feed -->
+  <div id="feed">
+    <div id="feed-inner"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
