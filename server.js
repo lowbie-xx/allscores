@@ -96,8 +96,11 @@ let scoreEvents = [];
 let lastScores = {};
 let lastScoringPlays = {};
 let activeGameCount = 0;
+let cachedClientGames = null;
+let lastGamesHash = '';
 
-const POLL_INTERVAL = 25_000;
+const POLL_LIVE = 15_000;
+const POLL_IDLE = 60_000;
 
 // ── ESPN Endpoints ─────────────────────────────────────
 const ESPN_SOURCES = [
@@ -248,7 +251,9 @@ async function detectAndEnrichScoreChanges(newGames) {
   if (changedGames.length === 0) return [];
 
   const events = [];
-  const detailFetches = changedGames.slice(0, 5).map(async ({ game, homeDiff, awayDiff }) => {
+  const detailFetches = changedGames
+    .filter(({ game }) => game.summaryPath)
+    .map(async ({ game, homeDiff, awayDiff }) => {
     const scorerDetails = await fetchScorerDetails(game);
 
     if (scorerDetails && scorerDetails.length > 0) {
@@ -298,6 +303,24 @@ async function detectAndEnrichScoreChanges(newGames) {
     }
   });
 
+  // Emit fallback events for games without summaryPath (no detail fetch)
+  for (const { game, homeDiff, awayDiff } of changedGames.filter(({ game }) => !game.summaryPath)) {
+    if (homeDiff > 0) {
+      events.push({
+        time: Date.now(), side: 'home', team: game.homeTeam, scorer: game.homeTeam,
+        points: homeDiff, sport: game.sport, league: game.league,
+        verb: sportVerb(game.sport, homeDiff), newScore: `${game.homeScore}-${game.awayScore}`,
+      });
+    }
+    if (awayDiff > 0) {
+      events.push({
+        time: Date.now(), side: 'away', team: game.awayTeam, scorer: game.awayTeam,
+        points: awayDiff, sport: game.sport, league: game.league,
+        verb: sportVerb(game.sport, awayDiff), newScore: `${game.homeScore}-${game.awayScore}`,
+      });
+    }
+  }
+
   await Promise.allSettled(detailFetches);
 
   // Update daily totals
@@ -314,16 +337,18 @@ async function detectAndEnrichScoreChanges(newGames) {
 }
 
 // ── Main Poll Loop ─────────────────────────────────────
+function gamesHash(games) {
+  let h = '';
+  for (const g of games) h += `${g.id}:${g.homeScore}-${g.awayScore}:${g.status},`;
+  return h;
+}
+
 async function pollAllSources() {
   try {
     checkDayRollover();
 
-    const results = [];
-    for (let i = 0; i < ESPN_SOURCES.length; i += 8) {
-      const batch = ESPN_SOURCES.slice(i, i + 8);
-      const batchResults = await Promise.allSettled(batch.map(fetchESPNSource));
-      results.push(...batchResults);
-    }
+    // Fetch all sources in parallel
+    const results = await Promise.allSettled(ESPN_SOURCES.map(fetchESPNSource));
 
     const allGames = [];
     for (const r of results) {
@@ -344,17 +369,21 @@ async function pollAllSources() {
       broadcast({ type: 'events', events: newEvents });
     }
 
-    const clientGames = allGames.map(({ summaryPath, espnId, ...rest }) => rest);
-    broadcast({
-      type: 'games',
-      games: clientGames,
-      activeGameCount,
-      dailyHome,
-      dailyAway,
-      day: currentDay,
-    });
+    // Only broadcast games update if something changed
+    const hash = gamesHash(allGames);
+    if (hash !== lastGamesHash) {
+      lastGamesHash = hash;
+      cachedClientGames = allGames.map(({ summaryPath, espnId, ...rest }) => rest);
+      broadcast({
+        type: 'games',
+        games: cachedClientGames,
+        activeGameCount,
+        dailyHome,
+        dailyAway,
+        day: currentDay,
+      });
+    }
 
-    const sports = [...new Set(allGames.map(g => g.sport))];
     console.log(`[poll] ${liveOnly.length} live / ${allGames.length} total, daily: H${dailyHome}-A${dailyAway}, ${newEvents.length} events`);
   } catch (err) {
     console.error('[poll] error:', err.message);
@@ -372,14 +401,14 @@ function broadcast(data) {
 }
 
 wss.on('connection', (ws) => {
-  const clientGames = liveGames.map(({ summaryPath, espnId, ...rest }) => rest);
   ws.send(JSON.stringify({
     type: 'init',
-    games: clientGames,
+    games: cachedClientGames || [],
     activeGameCount,
     dailyHome,
     dailyAway,
     day: currentDay,
+    recentEvents: scoreEvents.slice(-10),
   }));
 });
 
@@ -428,12 +457,31 @@ function shutdown() {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
+// ── Stale State Cleanup ───────────────────────────────
+// Prune finished games from tracking maps every 10 minutes
+setInterval(() => {
+  const activeIds = new Set(liveGames.map(g => g.id));
+  for (const id of Object.keys(lastScoringPlays)) {
+    if (!activeIds.has(id)) delete lastScoringPlays[id];
+  }
+}, 600_000);
+
+// ── Adaptive Poll Loop ────────────────────────────────
+let pollTimer = null;
+
+function schedulePoll() {
+  const interval = activeGameCount > 0 ? POLL_LIVE : POLL_IDLE;
+  pollTimer = setTimeout(async () => {
+    await pollAllSources();
+    schedulePoll();
+  }, interval);
+}
+
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`ALLSCORES running on port ${PORT}`);
-  console.log(`Polling ${ESPN_SOURCES.length} ESPN endpoints every ${POLL_INTERVAL / 1000}s`);
+  console.log(`Polling ${ESPN_SOURCES.length} ESPN endpoints (${POLL_LIVE / 1000}s live / ${POLL_IDLE / 1000}s idle)`);
   console.log(`Today: ${currentDay}, daily: H${dailyHome}-A${dailyAway}`);
-  pollAllSources();
-  setInterval(pollAllSources, POLL_INTERVAL);
+  pollAllSources().then(schedulePoll);
 });
