@@ -6,6 +6,7 @@ let games = [];
 let feedItems = [];
 let ws = null;
 let reconnectTimer = null;
+let lastGamesContributed = 0;
 
 // ── DOM ─────────────────────────────────────────────
 const $homeScore = document.getElementById('home-score');
@@ -215,6 +216,7 @@ function connect() {
 
     if (data.type === 'init' || data.type === 'games') {
       games = data.games || [];
+      if (data.gamesContributed !== undefined) lastGamesContributed = data.gamesContributed;
       updateResumeCountdown();
 
       // Only update modal stats DOM when modal is visible
@@ -433,7 +435,7 @@ function showWinnerAnimation(winner, finalHome, finalAway, onComplete) {
 function updateModalStats() {
   const liveCount = games.filter(g => g.isLive).length;
   $infoLiveCount.textContent = liveCount;
-  $infoTotalCount.textContent = games.filter(g => g.isLive || g.status === 'FT').length;
+  $infoTotalCount.textContent = lastGamesContributed;
   $infoSports.textContent = [...new Set(games.map(g => g.sport))].join(', ') || '—';
   $infoLeagues.textContent = [...new Set(games.map(g => g.league))].join(', ') || '—';
 }
