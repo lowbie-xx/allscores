@@ -229,6 +229,7 @@ function connect() {
         currentDay = data.day;
         $homeScore.textContent = dailyHome;
         $awayScore.textContent = dailyAway;
+        updateScoreSize();
       }
 
       // Populate feed with recent events on first connect
@@ -281,6 +282,7 @@ function addScoreEvent(event) {
     triggerFlash('away');
   }
 
+  updateScoreSize();
   animateScore($homeScore, dailyHome);
   animateScore($awayScore, dailyAway);
 
@@ -294,6 +296,26 @@ function triggerFlash(side) {
   const $el = side === 'home' ? $flashHome : $flashAway;
   $el.classList.add('active');
   setTimeout(() => $el.classList.remove('active'), 800);
+}
+
+// ── Score Sizing ───────────────────────────────────
+// Scale font size down as digit count grows
+const SCORE_SCALES = {
+  1: { vw: '18vw', max: '260px' },
+  2: { vw: '18vw', max: '260px' },
+  3: { vw: '16vw', max: '220px' },
+  4: { vw: '12vw', max: '180px' },
+  5: { vw: '10vw', max: '140px' },
+};
+
+function updateScoreSize() {
+  const maxDigits = Math.max(
+    String(dailyHome).length,
+    String(dailyAway).length
+  );
+  const scale = SCORE_SCALES[Math.min(maxDigits, 5)] || SCORE_SCALES[5];
+  document.documentElement.style.setProperty('--score-vw', scale.vw);
+  document.documentElement.style.setProperty('--score-max', scale.max);
 }
 
 // ── Animate Score ───────────────────────────────────
