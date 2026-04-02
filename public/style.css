@@ -168,12 +168,9 @@ html, body {
 
 #info-sports,
 #info-leagues {
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: bottom;
+  display: block;
+  word-wrap: break-word;
+  white-space: normal;
 }
 
 #info-close {
