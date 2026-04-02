@@ -78,6 +78,7 @@ function checkDayRollover() {
     // Reset score tracking so first poll doesn't generate phantom events
     lastScores = {};
     lastScoringPlays = {};
+    gamesContributed = new Set();
 
     console.log(`[day] rolled over to ${currentDay}`);
     broadcast({ type: 'dayReset', day: currentDay, finalHome, finalAway, winner });
@@ -96,6 +97,7 @@ let scoreEvents = [];
 let lastScores = {};
 let lastScoringPlays = {};
 let activeGameCount = 0;
+let gamesContributed = new Set(); // games that have actually scored today
 let cachedClientGames = null;
 let lastGamesHash = '';
 
@@ -244,6 +246,7 @@ async function detectAndEnrichScoreChanges(newGames) {
       const awayDiff = game.awayScore - prev.away;
       if (homeDiff > 0 || awayDiff > 0) {
         changedGames.push({ game, homeDiff, awayDiff });
+        gamesContributed.add(game.id);
       }
     }
     lastScores[game.id] = { home: game.homeScore, away: game.awayScore };
@@ -379,6 +382,7 @@ async function pollAllSources() {
         type: 'games',
         games: cachedClientGames,
         activeGameCount,
+        gamesContributed: gamesContributed.size,
         dailyHome,
         dailyAway,
         day: currentDay,
@@ -406,6 +410,7 @@ wss.on('connection', (ws) => {
     type: 'init',
     games: cachedClientGames || [],
     activeGameCount,
+    gamesContributed: gamesContributed.size,
     dailyHome,
     dailyAway,
     day: currentDay,
