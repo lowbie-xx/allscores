@@ -364,12 +364,12 @@ main {
 }
 
 .score {
-  font-size: clamp(80px, 18vw, 260px);
+  font-size: clamp(48px, var(--score-vw, 18vw), var(--score-max, 260px));
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  transition: color 0.3s;
+  transition: color 0.3s, font-size 0.4s ease;
   font-family: var(--font-score);
 }
 
